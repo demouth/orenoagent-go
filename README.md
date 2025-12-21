@@ -5,7 +5,7 @@ A simple AI agent implementation using OpenAI's Reasoning models.
 ## Overview
 
 - A learning-focused AI agent implementation
-- Built with OpenAI's Reasoning models (o1, o3-mini, etc.)
+- Built with OpenAI's Reasoning models (GPT-5)
 
 ## Requirements
 
@@ -50,7 +50,7 @@ func main() {
 OpenAI の Reasoning models を使用したシンプルな AI エージェントの実装です。
 
 - 学習用に作成した AI エージェント
-- OpenAI の Reasoning models（o1、o3-mini など）を使用
+- OpenAI の Reasoning models（GPT-5）を使用
 
 ## 必要な設定
 
