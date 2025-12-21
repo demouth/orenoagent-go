@@ -8,9 +8,11 @@ import (
 )
 
 func main() {
+	// Set the `OPENAI_API_KEY` environment variable
 	client := openai.NewClient()
+
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client, []orenoagent.Tool{}, true)
+	agent := orenoagent.NewAgent(client, []orenoagent.Tool{}, false)
 
 	question := "Who was the first president of the United States?"
 	println("[Question]")
@@ -24,10 +26,6 @@ func main() {
 		switch r := result.(type) {
 		case *orenoagent.MessageResult:
 			println("[Message]")
-			println(r.String())
-			println()
-		case *orenoagent.ReasoningResult:
-			println("[Reasoning]")
 			println(r.String())
 			println()
 		case *orenoagent.FunctionCallResult:
