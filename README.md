@@ -47,7 +47,7 @@ func main() {
 
 ## 概要
 
-OpenAI の Reasoning models を使用したシンプルな AI エージェントの実装です。
+「俺のエージェント」は OpenAI の Reasoning models を使用したシンプルな AI エージェントの実装です。
 
 - 学習用に作成した AI エージェント
 - OpenAI の Reasoning models（GPT-5）を使用
