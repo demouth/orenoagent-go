@@ -1,4 +1,4 @@
-module github.com/demouth/orenoagent
+module github.com/demouth/orenoagent-go
 
 go 1.25
 

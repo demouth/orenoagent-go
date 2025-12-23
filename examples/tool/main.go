@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/demouth/orenoagent"
+	"github.com/demouth/orenoagent-go"
 	"github.com/openai/openai-go/v3"
 	"github.com/tectiv3/websearch"
 	"github.com/tectiv3/websearch/provider"

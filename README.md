@@ -19,7 +19,7 @@ package main
 
 import (
     "context"
-    "github.com/demouth/orenoagent"
+    "github.com/demouth/orenoagent-go"
     "github.com/openai/openai-go/v3"
 )
 
@@ -64,7 +64,7 @@ package main
 
 import (
     "context"
-    "github.com/demouth/orenoagent"
+    "github.com/demouth/orenoagent-go"
     "github.com/openai/openai-go/v3"
 )
 
