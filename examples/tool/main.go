@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/demouth/orenoagent-go"
@@ -128,15 +127,14 @@ var Tools = []orenoagent.Tool{
 		},
 		Function: func(args string) string {
 			var param struct {
-				url string
+				Url string
 			}
 			err := json.Unmarshal([]byte(args), &param)
 			if err != nil {
 				return fmt.Sprintf("%v", err)
 			}
-			query := url.QueryEscape(param.url)
 
-			req, _ := http.NewRequest("GET", query, nil)
+			req, _ := http.NewRequest("GET", param.Url, nil)
 			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
 			client := &http.Client{}
