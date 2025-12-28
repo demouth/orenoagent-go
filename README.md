@@ -28,10 +28,13 @@ func main() {
     ctx := context.Background()
 
     agent := orenoagent.NewAgent(client, tools, true)
-    results, _ := agent.Ask(ctx, "What is the current date and time?")
+    subscriber, _ := agent.Ask(ctx, "What is the current date and time?")
 
-    for result := range results {
+    for result := range subscriber.Subscribe() {
         switch r := result.(type) {
+        case *orenoagent.ErrorResult:
+            fmt.Printf("Error: %v\n", r.Error())
+            return
         case *orenoagent.MessageResult:
             println(r.String())
         case *orenoagent.ReasoningResult:
@@ -73,10 +76,13 @@ func main() {
     ctx := context.Background()
 
     agent := orenoagent.NewAgent(client, tools, true)
-    results, _ := agent.Ask(ctx, "What is the current date and time?")
+    subscriber, _ := agent.Ask(ctx, "What is the current date and time?")
 
-    for result := range results {
+    for result := range subscriber.Subscribe() {
         switch r := result.(type) {
+        case *orenoagent.ErrorResult:
+            fmt.Printf("Error: %v\n", r.Error())
+            return
         case *orenoagent.MessageResult:
             println(r.String())
         case *orenoagent.ReasoningResult:

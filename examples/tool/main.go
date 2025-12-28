@@ -31,12 +31,15 @@ func main() {
 		println("[Question]")
 		println(question)
 		println()
-		results, err := agent.Ask(ctx, question)
+		subscriber, err := agent.Ask(ctx, question)
 		if err != nil {
 			panic(err)
 		}
-		for result := range results {
+		for result := range subscriber.Subscribe() {
 			switch r := result.(type) {
+			case *orenoagent.ErrorResult:
+				fmt.Printf("Error: %v\n", r.Error())
+				return
 			case *orenoagent.MessageResult:
 				println("[Message]")
 				println(r.String())

@@ -2,9 +2,10 @@ package orenoagent
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/ssestream"
 	"github.com/openai/openai-go/v3/responses"
 )
 
@@ -37,7 +38,7 @@ func (a *llmCaller) callAPI(
 	ctx context.Context,
 	input responses.ResponseNewParamsInputUnion,
 	toolChoiceOption responses.ToolChoiceOptions,
-) (*responses.Response, error) {
+) *ssestream.Stream[responses.ResponseStreamEventUnion] {
 	tools := []responses.ToolUnionParam{}
 	for _, t := range a.tools {
 		tools = append(tools, responses.ToolUnionParam{
@@ -58,6 +59,7 @@ func (a *llmCaller) callAPI(
 
 		Model: openai.ChatModelGPT5Nano,
 		// Model: openai.ChatModelGPT4_1Nano,
+
 	}
 
 	if a.useReasoningSummary {
@@ -88,13 +90,9 @@ func (a *llmCaller) callAPI(
 	} else {
 		params.PreviousResponseID = openai.String(a.getResponseID())
 	}
-	resp, err := a.client.Responses.New(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	a.setResponseID(resp.ID)
+	resp := a.client.Responses.NewStreaming(ctx, params)
 
-	return resp, nil
+	return resp
 }
 
 func (a *llmCaller) processMessageInput(
@@ -139,14 +137,23 @@ func (a *llmCaller) processMessageInput(
 		},
 	)
 
-	resp, err := a.callAPI(ctx, inputs, responses.ToolChoiceOptionsAuto)
-	if err != nil {
-		return nil, err
+	stream := a.callAPI(ctx, inputs, responses.ToolChoiceOptionsAuto)
+	var results Results
+	for stream.Next() {
+		if err := stream.Err(); err != nil {
+			return nil, err
+		}
+		event := stream.Current()
+		result, err := a.handleResponse(ctx, yield, event)
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			continue
+		}
+		results = append(results, result)
 	}
-	results, err := a.handleResponse(ctx, yield, resp)
-	if err != nil {
-		return nil, err
-	}
+
 	for {
 		if results.HasToolCallResult() {
 			moreResults, err := a.processFunctionCallInput(ctx, yield, results.MakeToolCallInputs())
@@ -158,14 +165,14 @@ func (a *llmCaller) processMessageInput(
 			break
 		}
 	}
-	return results, nil
+	return nil, nil
 }
 
 func (a *llmCaller) processFunctionCallInput(
 	ctx context.Context,
 	yield func(Result) bool,
 	input *FunctionCallInput,
-) ([]Result, error) {
+) (Results, error) {
 	var itemList []responses.ResponseInputItemUnionParam
 	for _, param := range input.param {
 		callResult := ""
@@ -186,53 +193,76 @@ func (a *llmCaller) processFunctionCallInput(
 	inputs := responses.ResponseNewParamsInputUnion{
 		OfInputItemList: itemList,
 	}
-	resp, err := a.callAPI(ctx, inputs, responses.ToolChoiceOptionsAuto)
-	if err != nil {
-		return nil, err
+	stream := a.callAPI(ctx, inputs, responses.ToolChoiceOptionsAuto)
+
+	var results Results
+	for stream.Next() {
+		if err := stream.Err(); err != nil {
+			return nil, err
+		}
+		event := stream.Current()
+		result, err := a.handleResponse(ctx, yield, event)
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			continue
+		}
+		results = append(results, result)
 	}
-	return a.handleResponse(ctx, yield, resp)
+	return results, nil
 }
+
 func (a *llmCaller) handleResponse(
 	_ context.Context,
 	yield func(Result) bool,
-	resp *responses.Response,
-) (Results, error) {
-	var results []Result
-	for _, output := range resp.Output {
-		switch output.Type {
-		case "function_call":
-			functionCall := output.AsFunctionCall()
-			r := NewFunctionCallResult(functionCall)
-			if !yield(r) {
-				return results, nil
-			}
-			results = append(results, r)
+	event responses.ResponseStreamEventUnion,
+) (Result, error) {
 
+	// fmt.Println("[DEBUG] output.Type:", event.Type)
+	// fmt.Println(event.RawJSON())
+
+	switch event.Type {
+
+	case "response.function_call_arguments.done":
+	case "response.output_item.done":
+		r := event.AsResponseOutputItemDone()
+		switch r.Item.Type {
 		case "message":
-			message := output.AsMessage()
-			var r Result
-			r = NewMessageResult(message)
+		case "function_call":
+			item := r.Item.AsFunctionCall()
+			r := NewFunctionCallResult(item.CallID, item.Name, item.Arguments)
 			if !yield(r) {
-				return results, nil
+				return nil, errors.New("cancel iter")
 			}
-			results = append(results, r)
-
-		case "reasoning":
-			reasoning := output.AsReasoning()
-			for _, summary := range reasoning.Summary {
-				r := NewReasoningResult(summary)
-				if !yield(r) {
-					return results, nil
-				}
-				results = append(results, r)
-			}
-
-		default:
-			fmt.Println("[DEBUG] output.Type:", output.Type)
-			fmt.Println(output.RawJSON())
-
+			return r, nil
 		}
+
+	case "response.output_text.delta":
+	case "response.output_text.done":
+		t := event.AsResponseOutputTextDone()
+		var r Result
+		r = NewMessageResult(t.Text)
+		if !yield(r) {
+			return nil, errors.New("cancel iter")
+		}
+		return r, nil
+
+	case "response.reasoning_summary_text.done":
+		t := event.AsResponseReasoningSummaryTextDone()
+		r := NewReasoningResult(t.Text)
+		if !yield(r) {
+			return nil, errors.New("cancel iter")
+		}
+		return r, nil
+
+	case "response.completed":
+		t := event.AsResponseCompleted()
+		a.setResponseID(t.Response.ID)
+
+	default:
+
 	}
 
-	return results, nil
+	return nil, nil
 }

@@ -2,10 +2,9 @@ package orenoagent
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	"github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/responses"
 )
 
 type Agent struct {
@@ -25,17 +24,25 @@ func NewAgent(client openai.Client, tools []Tool, useReasoningSummary bool) *Age
 	}
 }
 
-type ResultItr func(func(Result) bool)
-
-func (a *Agent) Ask(ctx context.Context, question string) (ResultItr, error) {
+func (a *Agent) Ask(ctx context.Context, question string) (*Subscriber[Result], error) {
 	input := NewMessageInput(question)
-	f := func(yield func(Result) bool) {
+	subscriber := NewSubscriber[Result](100)
+
+	go func() {
+		defer subscriber.Close()
+
+		yield := func(r Result) bool {
+			return subscriber.Publish(r)
+		}
+
 		_, err := a.llmCaller.processMessageInput(ctx, yield, input)
 		if err != nil {
-			panic(err)
+			subscriber.Publish(NewErrorResult(err))
+			return
 		}
-	}
-	return f, nil
+	}()
+
+	return subscriber, nil
 }
 
 // Tool
@@ -116,9 +123,9 @@ func (r Results) MakeToolCallInputs() *FunctionCallInput {
 		if result.Type() == "function_call" {
 			fcResult := result.(*FunctionCallResult)
 			fcInput.add(
-				fcResult.functionToolCall.CallID,
-				fcResult.functionToolCall.Name,
-				fcResult.functionToolCall.Arguments,
+				fcResult.callID,
+				fcResult.name,
+				fcResult.arguments,
 			)
 		}
 	}
@@ -131,12 +138,12 @@ type Result interface {
 }
 
 type MessageResult struct {
-	message responses.ResponseOutputMessage
+	text string
 }
 
-func NewMessageResult(message responses.ResponseOutputMessage) *MessageResult {
+func NewMessageResult(text string) *MessageResult {
 	return &MessageResult{
-		message: message,
+		text: text,
 	}
 }
 func (*MessageResult) isResult() {}
@@ -144,20 +151,16 @@ func (r *MessageResult) Type() string {
 	return "message"
 }
 func (r *MessageResult) String() string {
-	var outputText strings.Builder
-	for _, content := range r.message.Content {
-		outputText.WriteString(content.Text)
-	}
-	return outputText.String()
+	return r.text
 }
 
 type ReasoningResult struct {
-	reasoningSummary responses.ResponseReasoningItemSummary
+	text string
 }
 
-func NewReasoningResult(reasoningSummary responses.ResponseReasoningItemSummary) *ReasoningResult {
+func NewReasoningResult(text string) *ReasoningResult {
 	return &ReasoningResult{
-		reasoningSummary: reasoningSummary,
+		text: text,
 	}
 }
 func (*ReasoningResult) isResult() {}
@@ -165,16 +168,20 @@ func (r *ReasoningResult) Type() string {
 	return "think"
 }
 func (r *ReasoningResult) String() string {
-	return r.reasoningSummary.Text
+	return r.text
 }
 
 type FunctionCallResult struct {
-	functionToolCall responses.ResponseFunctionToolCall
+	callID    string
+	name      string
+	arguments string
 }
 
-func NewFunctionCallResult(functionToolCall responses.ResponseFunctionToolCall) *FunctionCallResult {
+func NewFunctionCallResult(callID, name, arguments string) *FunctionCallResult {
 	return &FunctionCallResult{
-		functionToolCall: functionToolCall,
+		callID:    callID,
+		name:      name,
+		arguments: arguments,
 	}
 }
 func (*FunctionCallResult) isResult() {}
@@ -182,5 +189,23 @@ func (r *FunctionCallResult) Type() string {
 	return "function_call"
 }
 func (r *FunctionCallResult) String() string {
-	return "FunctionToolCall: " + r.functionToolCall.Name + " args:" + r.functionToolCall.Arguments
+	return "FunctionToolCall: " + r.name + " args:" + r.arguments
+}
+
+type ErrorResult struct {
+	err error
+}
+
+func NewErrorResult(err error) *ErrorResult {
+	return &ErrorResult{err: err}
+}
+func (*ErrorResult) isResult() {}
+func (r *ErrorResult) Type() string {
+	return "error"
+}
+func (r *ErrorResult) String() string {
+	return fmt.Sprintf("Error: %v", r.err)
+}
+func (r *ErrorResult) Error() error {
+	return r.err
 }
