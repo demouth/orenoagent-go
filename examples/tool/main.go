@@ -52,8 +52,6 @@ func main() {
 				println("[FunctionCall]")
 				println(r.String())
 				println()
-			default:
-				panic("unkown result type")
 			}
 		}
 	}

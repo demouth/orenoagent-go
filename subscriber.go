@@ -28,8 +28,12 @@ func (s *Subscriber[T]) Publish(data T) bool {
 
 	s.history = append(s.history, data)
 
-	s.stream <- data
-	return true
+	select {
+	case s.stream <- data:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Subscriber[T]) Subscribe() <-chan T {

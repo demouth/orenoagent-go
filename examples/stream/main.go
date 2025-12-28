@@ -36,9 +36,12 @@ func main() {
 				println("[Message]")
 				println(r.String())
 				println()
-			case *orenoagent.ReasoningResult:
-				println("[Reasoning]")
-				println(r.String())
+			case *orenoagent.ReasoningDeltaResult:
+				println("[Reasoning Stream]")
+				for delta := range r.Subscribe() {
+					print(delta)
+				}
+				println()
 				println()
 			case *orenoagent.FunctionCallResult:
 				println("[FunctionCall]")

@@ -17,6 +17,8 @@ type llmCaller struct {
 	// Organizational authentication is required to generate inference summaries.
 	// https://platform.openai.com/settings/organization/general
 	useReasoningSummary bool
+
+	latestReasoningDeltaResult *ReasoningDeltaResult
 }
 
 func newLLMCaller(client openai.Client, tools []Tool, useReasoningSummary bool) *llmCaller {
@@ -247,6 +249,25 @@ func (a *llmCaller) handleResponse(
 			return nil, errors.New("cancel iter")
 		}
 		return r, nil
+
+	case "response.reasoning_summary_part.added":
+		t := event.AsResponseReasoningSummaryPartAdded()
+		r := NewReasoningDeltaResult(t.Part.Text)
+		a.latestReasoningDeltaResult = r
+		if !yield(r) {
+			return nil, errors.New("cancel iter")
+		}
+		return r, nil
+
+	case "response.reasoning_summary_text.delta":
+		t := event.AsResponseReasoningSummaryTextDelta()
+		r := a.latestReasoningDeltaResult
+		r.addDelta(t.Delta)
+
+	case "response.reasoning_summary_part.done":
+		if a.latestReasoningDeltaResult != nil {
+			a.latestReasoningDeltaResult.Close()
+		}
 
 	case "response.reasoning_summary_text.done":
 		t := event.AsResponseReasoningSummaryTextDone()
