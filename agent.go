@@ -154,6 +154,38 @@ func (r *MessageResult) String() string {
 	return r.text
 }
 
+type MessageDeltaResult struct {
+	text       string
+	subscriber *Subscriber[string]
+}
+
+func NewMessageDeltaResult(text string) *MessageDeltaResult {
+	subscriber := NewSubscriber[string](1000)
+	r := &MessageDeltaResult{
+		text:       text,
+		subscriber: subscriber,
+	}
+	subscriber.Publish(text)
+	return r
+}
+func (*MessageDeltaResult) isResult() {}
+func (r *MessageDeltaResult) Type() string {
+	return "message_delta"
+}
+func (r *MessageDeltaResult) String() string {
+	return r.text
+}
+func (r *MessageDeltaResult) addDelta(text string) {
+	r.subscriber.Publish(text)
+	r.text = r.text + text
+}
+func (r *MessageDeltaResult) Subscribe() <-chan string {
+	return r.subscriber.Subscribe()
+}
+func (r *MessageDeltaResult) Close() {
+	r.subscriber.Close()
+}
+
 type ReasoningDeltaResult struct {
 	text       string
 	subscriber *Subscriber[string]

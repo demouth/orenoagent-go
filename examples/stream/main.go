@@ -17,7 +17,7 @@ func main() {
 
 	questions := []string{
 		"赤・青・緑の箱がある。赤は青の左。緑は赤の右。赤と緑は隣り合っている。中央にある箱は？",
-		"さっき私がした質問をもう一度繰り返して",
+		"小学生低学年が分かるように解説して",
 	}
 	for _, question := range questions {
 		println("[Question]")
@@ -32,9 +32,12 @@ func main() {
 			case *orenoagent.ErrorResult:
 				fmt.Printf("Error: %v\n", r.Error())
 				return
-			case *orenoagent.MessageResult:
-				println("[Message]")
-				println(r.String())
+			case *orenoagent.MessageDeltaResult:
+				println("[Message Stream]")
+				for delta := range r.Subscribe() {
+					print(delta)
+				}
+				println()
 				println()
 			case *orenoagent.ReasoningDeltaResult:
 				println("[Reasoning Stream]")

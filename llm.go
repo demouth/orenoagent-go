@@ -18,6 +18,7 @@ type llmCaller struct {
 	// https://platform.openai.com/settings/organization/general
 	useReasoningSummary bool
 
+	latestMessageDeltaResult   *MessageDeltaResult
 	latestReasoningDeltaResult *ReasoningDeltaResult
 }
 
@@ -240,7 +241,25 @@ func (a *llmCaller) handleResponse(
 			return r, nil
 		}
 
+	case "response.content_part.added":
+		t := event.AsResponseContentPartAdded()
+		r := NewMessageDeltaResult(t.Part.Text)
+		a.latestMessageDeltaResult = r
+		if !yield(r) {
+			return nil, errors.New("cancel iter")
+		}
+		return r, nil
+
 	case "response.output_text.delta":
+		t := event.AsResponseOutputTextDelta()
+		r := a.latestMessageDeltaResult
+		r.addDelta(t.Delta)
+
+	case "response.content_part.done":
+		if a.latestMessageDeltaResult != nil {
+			a.latestMessageDeltaResult.Close()
+		}
+
 	case "response.output_text.done":
 		t := event.AsResponseOutputTextDone()
 		var r Result
