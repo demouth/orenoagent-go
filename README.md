@@ -1,10 +1,11 @@
 # orenoagent-go
 
-A simple AI agent implementation using OpenAI's Reasoning models.
+A lightweight AI agent framework built with OpenAI's Reasoning models.
 
 ## Overview
 
-- A learning-focused AI agent implementation
+- Streaming support for real-time reasoning delta updates
+- Tool calling and function execution
 - Built with OpenAI's Reasoning models (GPT-5)
 
 ## Requirements
@@ -50,9 +51,10 @@ func main() {
 
 ## 概要
 
-「俺のエージェント」は OpenAI の Reasoning models を使用したシンプルな AI エージェントの実装です。
+OpenAI の Reasoning models を使用した軽量な AI エージェントフレームワークです。
 
-- 学習用に作成した AI エージェント
+- リアルタイムな推論デルタ更新のストリーミングサポート
+- ツール呼び出しと関数実行
 - OpenAI の Reasoning models（GPT-5）を使用
 
 ## 必要な設定
