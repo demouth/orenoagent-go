@@ -28,7 +28,7 @@ func main() {
 
 	agent := orenoagent.NewAgent(
 		client,
-		Tools,
+		orenoagent.WithTools(Tools),
 		orenoagent.WithReasoningSummary("detailed"),
 		orenoagent.WithModel(openai.ChatModelGPT5Nano),
 	)

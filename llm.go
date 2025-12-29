@@ -26,10 +26,10 @@ type llmCaller struct {
 	latestReasoningDeltaResult *ReasoningDeltaResult
 }
 
-func newLLMCaller(client openai.Client, tools []Tool) *llmCaller {
+func newLLMCaller(client openai.Client) *llmCaller {
 	return &llmCaller{
 		client:           client,
-		tools:            tools,
+		tools:            []Tool{},
 		reasoningSummary: "none",
 		model:            openai.ChatModelGPT5Nano,
 	}

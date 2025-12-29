@@ -13,8 +13,8 @@ func main() {
 	client := openai.NewClient()
 
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client,
-		[]orenoagent.Tool{},
+	agent := orenoagent.NewAgent(
+		client,
 		orenoagent.WithReasoningSummary("detailed"),
 		orenoagent.WithModel(openai.ChatModelGPT5Nano),
 	)

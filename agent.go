@@ -15,6 +15,13 @@ type Agent struct {
 // AgentOption configures an Agent.
 type AgentOption func(*Agent)
 
+// WithTools sets the tools available to the agent.
+func WithTools(tools []Tool) AgentOption {
+	return func(a *Agent) {
+		a.llmCaller.tools = tools
+	}
+}
+
 // WithReasoningSummary sets the reasoning summary level.
 // Available values: "auto", "concise", "detailed", "none" (default: "none")
 //
@@ -35,15 +42,15 @@ func WithModel(model string) AgentOption {
 	}
 }
 
-// NewAgent creates a new Agent with the given client and tools.
+// NewAgent creates a new Agent with the given client.
 //
 // Example usage:
 //
-//	agent := orenoagent.NewAgent(client, tools)
-//	agent := orenoagent.NewAgent(client, tools, orenoagent.WithReasoningSummary("detailed"))
-func NewAgent(client openai.Client, tools []Tool, opts ...AgentOption) *Agent {
+//	agent := orenoagent.NewAgent(client)
+//	agent := orenoagent.NewAgent(client, orenoagent.WithTools(tools), orenoagent.WithReasoningSummary("detailed"))
+func NewAgent(client openai.Client, opts ...AgentOption) *Agent {
 	agent := &Agent{
-		llmCaller: newLLMCaller(client, tools),
+		llmCaller: newLLMCaller(client),
 	}
 
 	for _, opt := range opts {

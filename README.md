@@ -32,12 +32,7 @@ func main() {
     client := openai.NewClient()
     ctx := context.Background()
 
-    agent := orenoagent.NewAgent(
-        client,
-        tools,
-        orenoagent.WithModel(openai.ChatModelGPT5Nano),
-        orenoagent.WithReasoningSummary("detailed"),
-    )
+    agent := orenoagent.NewAgent(client)
     subscriber, _ := agent.Ask(ctx, "What is the current date and time?")
 
     for result := range subscriber.Subscribe() {
