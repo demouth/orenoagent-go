@@ -13,14 +13,14 @@ func main() {
 	client := openai.NewClient()
 
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client, []orenoagent.Tool{}, true)
+	agent := orenoagent.NewAgent(client, Tools, true)
 
 	questions := []string{
-		"赤・青・緑の箱がある。赤は青の左。緑は赤の右。赤と緑は隣り合っている。中央にある箱は？",
-		"小学生低学年が分かるように解説して",
+		"Do I need an umbrella when I go out today?",
+		"What clothing do you recommend for today?",
 	}
 	for _, question := range questions {
-		println("[Question]")
+		println(decoration("Question"))
 		println(question)
 		println()
 		subscriber, err := agent.Ask(ctx, question)
@@ -33,24 +33,41 @@ func main() {
 				fmt.Printf("Error: %v\n", r.Error())
 				return
 			case *orenoagent.MessageDeltaResult:
-				println("[Message Stream]")
+				println(decoration("Message"))
 				for delta := range r.Subscribe() {
 					print(delta)
 				}
 				println()
 				println()
 			case *orenoagent.ReasoningDeltaResult:
-				println("[Reasoning Stream]")
+				println(decoration("Reasoning"))
+				print("\033[2m")
 				for delta := range r.Subscribe() {
 					print(delta)
 				}
-				println()
+				println("\033[0m")
 				println()
 			case *orenoagent.FunctionCallResult:
-				println("[FunctionCall]")
-				println(r.String())
+				println(decoration("FunctionCall"))
+				print("\033[2m")
+				print(r.String())
+				println("\033[0m")
 				println()
 			}
 		}
 	}
+}
+
+func decoration(s string) string {
+	return fmt.Sprintf("\033[1;4m[%s]\033[0m", s)
+}
+
+var Tools = []orenoagent.Tool{
+	{
+		Name:        "getWeather",
+		Description: "Get the weather information for today, tomorrow, and the day after tomorrow.",
+		Function: func(_ string) string {
+			return "Today's weather: Light rain, 15°C. Tomorrow's weather: Sunny, 20°C. Day after tomorrow's weather: Cloudy, 18°C."
+		},
+	},
 }
