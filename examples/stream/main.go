@@ -13,7 +13,11 @@ func main() {
 	client := openai.NewClient()
 
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client, Tools, true)
+	agent := orenoagent.NewAgent(client,
+		Tools,
+		orenoagent.WithReasoningSummary("detailed"),
+		orenoagent.WithModel(openai.ChatModelGPT5Nano),
+	)
 
 	questions := []string{
 		"Do I need an umbrella when I go out today?",

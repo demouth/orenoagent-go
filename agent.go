@@ -12,16 +12,45 @@ type Agent struct {
 	llmCaller  *llmCaller
 }
 
-// NewAgent
+// AgentOption configures an Agent.
+type AgentOption func(*Agent)
+
+// WithReasoningSummary sets the reasoning summary level.
+// Available values: "auto", "concise", "detailed", "none" (default: "none")
 //
-// useReasoningSummary:
-//   - To obtain a summary using the inference model, set this to true.
-//   - Organizational authentication is required to generate inference summaries.
+// Note:
+//   - Organizational authentication is required to use reasoning summaries.
 //   - https://platform.openai.com/settings/organization/general
-func NewAgent(client openai.Client, tools []Tool, useReasoningSummary bool) *Agent {
-	return &Agent{
-		llmCaller: newLLMCaller(client, tools, useReasoningSummary),
+func WithReasoningSummary(summary string) AgentOption {
+	return func(a *Agent) {
+		a.llmCaller.reasoningSummary = summary
 	}
+}
+
+// WithModel sets the model to use for the agent.
+// Default: openai.ChatModelGPT5Nano
+func WithModel(model string) AgentOption {
+	return func(a *Agent) {
+		a.llmCaller.model = model
+	}
+}
+
+// NewAgent creates a new Agent with the given client and tools.
+//
+// Example usage:
+//
+//	agent := orenoagent.NewAgent(client, tools)
+//	agent := orenoagent.NewAgent(client, tools, orenoagent.WithReasoningSummary("detailed"))
+func NewAgent(client openai.Client, tools []Tool, opts ...AgentOption) *Agent {
+	agent := &Agent{
+		llmCaller: newLLMCaller(client, tools),
+	}
+
+	for _, opt := range opts {
+		opt(agent)
+	}
+
+	return agent
 }
 
 func (a *Agent) Ask(ctx context.Context, question string) (*Subscriber[Result], error) {

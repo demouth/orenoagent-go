@@ -15,7 +15,7 @@ A lightweight AI agent framework built with OpenAI's Reasoning models.
 ## Requirements
 
 - Set the `OPENAI_API_KEY` environment variable
-- To enable `useReasoningSummary`, you need to verify your organization in the OpenAI settings
+- To use reasoning summaries, you need to verify your organization in the OpenAI settings
 
 ## Example
 
@@ -32,7 +32,12 @@ func main() {
     client := openai.NewClient()
     ctx := context.Background()
 
-    agent := orenoagent.NewAgent(client, tools, true)
+    agent := orenoagent.NewAgent(
+        client,
+        tools,
+        orenoagent.WithModel(openai.ChatModelGPT5Nano),
+        orenoagent.WithReasoningSummary("detailed"),
+    )
     subscriber, _ := agent.Ask(ctx, "What is the current date and time?")
 
     for result := range subscriber.Subscribe() {

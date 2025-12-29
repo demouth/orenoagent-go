@@ -16,17 +16,22 @@ type llmCaller struct {
 
 	// Organizational authentication is required to generate inference summaries.
 	// https://platform.openai.com/settings/organization/general
-	useReasoningSummary bool
+	// Supported values: "auto", "concise", "detailed", "none"
+	reasoningSummary string
+
+	// Model to use for the agent
+	model string
 
 	latestMessageDeltaResult   *MessageDeltaResult
 	latestReasoningDeltaResult *ReasoningDeltaResult
 }
 
-func newLLMCaller(client openai.Client, tools []Tool, useReasoningSummary bool) *llmCaller {
+func newLLMCaller(client openai.Client, tools []Tool) *llmCaller {
 	return &llmCaller{
-		client:              client,
-		tools:               tools,
-		useReasoningSummary: useReasoningSummary,
+		client:           client,
+		tools:            tools,
+		reasoningSummary: "none",
+		model:            openai.ChatModelGPT5Nano,
 	}
 }
 func (a *llmCaller) getResponseID() string {
@@ -60,14 +65,27 @@ func (a *llmCaller) callAPI(
 			OfToolChoiceMode: openai.Opt(toolChoiceOption),
 		},
 
-		Model: openai.ChatModelGPT5Nano,
-		// Model: openai.ChatModelGPT4_1Nano,
-
+		Model: a.model,
 	}
 
-	if a.useReasoningSummary {
-		params.Reasoning = openai.ReasoningParam{
-			Summary: openai.ReasoningSummaryDetailed,
+	if a.reasoningSummary != "none" {
+		switch a.reasoningSummary {
+		case "auto":
+			params.Reasoning = openai.ReasoningParam{
+				Summary: openai.ReasoningSummaryAuto,
+			}
+		case "concise":
+			params.Reasoning = openai.ReasoningParam{
+				Summary: openai.ReasoningSummaryConcise,
+			}
+		case "detailed":
+			params.Reasoning = openai.ReasoningParam{
+				Summary: openai.ReasoningSummaryDetailed,
+			}
+		default:
+			params.Reasoning = openai.ReasoningParam{
+				Summary: openai.ReasoningSummaryAuto,
+			}
 		}
 	}
 

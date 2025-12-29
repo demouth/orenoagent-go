@@ -13,7 +13,7 @@ func main() {
 	client := openai.NewClient()
 
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client, []orenoagent.Tool{}, false)
+	agent := orenoagent.NewAgent(client, []orenoagent.Tool{})
 
 	question := "Who was the first president of the United States?"
 	println("[Question]")
