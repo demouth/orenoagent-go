@@ -5,18 +5,20 @@ import (
 	"fmt"
 
 	"github.com/demouth/orenoagent-go"
-	"github.com/openai/openai-go/v3"
+	"github.com/demouth/orenoagent-go/provider/openai"
+	openaiSDK "github.com/openai/openai-go/v3"
 )
 
 func main() {
 	// Set the `OPENAI_API_KEY` environment variable
-	client := openai.NewClient()
+	client := openaiSDK.NewClient()
 
 	ctx := context.Background()
+	provider := openai.NewProvider(client)
 	agent := orenoagent.NewAgent(
-		client,
+		provider,
 		orenoagent.WithReasoningSummary("detailed"),
-		orenoagent.WithModel(openai.ChatModelGPT5Nano),
+		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
 	)
 
 	questions := []string{

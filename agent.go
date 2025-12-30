@@ -4,21 +4,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/openai/openai-go/v3"
+	"github.com/demouth/orenoagent-go/provider"
+	"github.com/demouth/orenoagent-go/provider/openai"
+	"github.com/demouth/orenoagent-go/util"
 )
 
 type Agent struct {
-	responseID string
-	llmCaller  *llmCaller
+	prov provider.Provider
 }
 
 // AgentOption configures an Agent.
 type AgentOption func(*Agent)
 
 // WithTools sets the tools available to the agent.
-func WithTools(tools []Tool) AgentOption {
+func WithTools(tools []provider.Tool) AgentOption {
 	return func(a *Agent) {
-		a.llmCaller.tools = tools
+		a.prov.SetTools(tools)
 	}
 }
 
@@ -30,7 +31,7 @@ func WithTools(tools []Tool) AgentOption {
 //   - https://platform.openai.com/settings/organization/general
 func WithReasoningSummary(summary string) AgentOption {
 	return func(a *Agent) {
-		a.llmCaller.reasoningSummary = summary
+		a.prov.SetReasoningSummary(summary)
 	}
 }
 
@@ -38,19 +39,20 @@ func WithReasoningSummary(summary string) AgentOption {
 // Default: openai.ChatModelGPT5Nano
 func WithModel(model string) AgentOption {
 	return func(a *Agent) {
-		a.llmCaller.model = model
+		a.prov.SetModel(model)
 	}
 }
 
-// NewAgent creates a new Agent with the given client.
+// NewAgent creates a new Agent with the given provider.
 //
 // Example usage:
 //
-//	agent := orenoagent.NewAgent(client)
-//	agent := orenoagent.NewAgent(client, orenoagent.WithTools(tools), orenoagent.WithReasoningSummary("detailed"))
-func NewAgent(client openai.Client, opts ...AgentOption) *Agent {
+//	provider := openai.NewProvider(client)
+//	agent := orenoagent.NewAgent(provider)
+//	agent := orenoagent.NewAgent(provider, orenoagent.WithTools(tools), orenoagent.WithReasoningSummary("detailed"))
+func NewAgent(prov provider.Provider, opts ...AgentOption) *Agent {
 	agent := &Agent{
-		llmCaller: newLLMCaller(client),
+		prov: prov,
 	}
 
 	for _, opt := range opts {
@@ -60,18 +62,22 @@ func NewAgent(client openai.Client, opts ...AgentOption) *Agent {
 	return agent
 }
 
-func (a *Agent) Ask(ctx context.Context, question string) (*Subscriber[Result], error) {
-	input := NewMessageInput(question)
-	subscriber := NewSubscriber[Result](100)
+func (a *Agent) Ask(ctx context.Context, question string) (*util.Subscriber[Result], error) {
+	subscriber := util.NewSubscriber[Result](100)
 
 	go func() {
 		defer subscriber.Close()
 
-		yield := func(r Result) bool {
-			return subscriber.Publish(r)
+		yield := func(providerResult provider.Result) bool {
+			agentResult, err := convertProviderResult(providerResult)
+			if err != nil {
+				subscriber.Publish(NewErrorResult(err))
+				return false
+			}
+			return subscriber.Publish(agentResult)
 		}
 
-		_, err := a.llmCaller.processMessageInput(ctx, yield, input)
+		err := a.prov.ProcessMessage(ctx, yield, question)
 		if err != nil {
 			subscriber.Publish(NewErrorResult(err))
 			return
@@ -81,237 +87,67 @@ func (a *Agent) Ask(ctx context.Context, question string) (*Subscriber[Result], 
 	return subscriber, nil
 }
 
-// Tool
-
-type Tool struct {
-	Name        string
-	Description string
-	Function    func(string) string
-	Parameters  map[string]any
-}
-
-// Input
-
-type Input interface {
-	isInput()
-	Type() string
-}
-
-type MessageInput struct {
-	question string
-}
-
-func NewMessageInput(question string) *MessageInput {
-	return &MessageInput{
-		question: question,
+// convertProviderResult converts a provider.Result to an agent Result.
+func convertProviderResult(providerResult provider.Result) (Result, error) {
+	switch pr := providerResult.(type) {
+	case *openai.MessageResult:
+		return NewMessageResult(pr.GetText()), nil
+	case *openai.MessageDeltaResult:
+		return convertMessageDeltaResult(pr), nil
+	case *openai.ReasoningResult:
+		return NewReasoningResult(pr.GetText()), nil
+	case *openai.ReasoningDeltaResult:
+		return convertReasoningDeltaResult(pr), nil
+	case *openai.FunctionCallResult:
+		return NewFunctionCallResult(pr.GetCallID(), pr.GetName(), pr.GetArguments()), nil
+	default:
+		return nil, fmt.Errorf("unknown provider result type: %T", providerResult)
 	}
 }
-func (*MessageInput) isInput() {}
-func (i *MessageInput) Type() string {
-	return "message"
-}
 
-type FunctionCallInput struct {
-	param []FunctionCallInputParam
-}
-type FunctionCallInputParam struct {
-	callID       string
-	functionName string
-	args         string
-}
-
-func NewFunctionCallInput() *FunctionCallInput {
-	return &FunctionCallInput{
-		param: []FunctionCallInputParam{},
-	}
-}
-func (f *FunctionCallInput) add(callID, functionName, args string) {
-	f.param = append(f.param, FunctionCallInputParam{
-		callID:       callID,
-		functionName: functionName,
-		args:         args,
-	})
-}
-func (f *FunctionCallInput) Len() int {
-	return len(f.param)
-}
-
-func (FunctionCallInput) isInput() {}
-func (i FunctionCallInput) Type() string {
-	return "function_call"
-}
-
-// Result
-
-type Results []Result
-
-func (r Results) HasToolCallResult() bool {
-	for _, result := range r {
-		if result.Type() == "function_call" {
-			return true
-		}
-	}
-	return false
-}
-func (r Results) MakeToolCallInputs() *FunctionCallInput {
-	fcInput := NewFunctionCallInput()
-	for _, result := range r {
-		if result.Type() == "function_call" {
-			fcResult := result.(*FunctionCallResult)
-			fcInput.add(
-				fcResult.callID,
-				fcResult.name,
-				fcResult.arguments,
-			)
-		}
-	}
-	return fcInput
-}
-
-type Result interface {
-	isResult()
-	Type() string
-}
-
-type MessageResult struct {
-	text string
-}
-
-func NewMessageResult(text string) *MessageResult {
-	return &MessageResult{
-		text: text,
-	}
-}
-func (*MessageResult) isResult() {}
-func (r *MessageResult) Type() string {
-	return "message"
-}
-func (r *MessageResult) String() string {
-	return r.text
-}
-
-type MessageDeltaResult struct {
-	text       string
-	subscriber *Subscriber[string]
-}
-
-func NewMessageDeltaResult(text string) *MessageDeltaResult {
-	subscriber := NewSubscriber[string](1000)
-	r := &MessageDeltaResult{
-		text:       text,
+// convertMessageDeltaResult converts a provider MessageDeltaResult to an agent MessageDeltaResult.
+func convertMessageDeltaResult(pr *openai.MessageDeltaResult) *MessageDeltaResult {
+	// Create a new MessageDeltaResult with empty text initially
+	// We'll receive the full stream from the provider
+	subscriber := util.NewSubscriber[string](1000)
+	agentResult := &MessageDeltaResult{
+		text:       "",
 		subscriber: subscriber,
 	}
-	subscriber.Publish(text)
-	return r
-}
-func (*MessageDeltaResult) isResult() {}
-func (r *MessageDeltaResult) Type() string {
-	return "message_delta"
-}
-func (r *MessageDeltaResult) String() string {
-	return r.text
-}
-func (r *MessageDeltaResult) addDelta(text string) {
-	r.subscriber.Publish(text)
-	r.text = r.text + text
-}
-func (r *MessageDeltaResult) Subscribe() <-chan string {
-	return r.subscriber.Subscribe()
-}
-func (r *MessageDeltaResult) Close() {
-	r.subscriber.Close()
+
+	// Subscribe to provider deltas and forward them to agent result
+	go func() {
+		defer subscriber.Close()
+		for delta := range pr.Subscribe() {
+			agentResult.text += delta
+			subscriber.Publish(delta)
+		}
+	}()
+
+	return agentResult
 }
 
-type ReasoningDeltaResult struct {
-	text       string
-	subscriber *Subscriber[string]
-}
-
-func NewReasoningDeltaResult(text string) *ReasoningDeltaResult {
-	subscriber := NewSubscriber[string](1000)
-	r := &ReasoningDeltaResult{
-		text:       text,
+// convertReasoningDeltaResult converts a provider ReasoningDeltaResult to an agent ReasoningDeltaResult.
+func convertReasoningDeltaResult(pr *openai.ReasoningDeltaResult) *ReasoningDeltaResult {
+	// Create a new ReasoningDeltaResult with empty text initially
+	// We'll receive the full stream from the provider
+	subscriber := util.NewSubscriber[string](1000)
+	agentResult := &ReasoningDeltaResult{
+		text:       "",
 		subscriber: subscriber,
 	}
-	subscriber.Publish(text)
-	return r
-}
-func (*ReasoningDeltaResult) isResult() {}
-func (r *ReasoningDeltaResult) Type() string {
-	return "reasoning_delta_result"
-}
-func (r *ReasoningDeltaResult) String() string {
-	return r.text
-}
-func (r *ReasoningDeltaResult) addDelta(text string) {
-	r.subscriber.Publish(text)
-	r.text = r.text + text
+
+	// Subscribe to provider deltas and forward them to agent result
+	go func() {
+		defer subscriber.Close()
+		for delta := range pr.Subscribe() {
+			agentResult.text += delta
+			subscriber.Publish(delta)
+		}
+	}()
+
+	return agentResult
 }
 
-func (r *ReasoningDeltaResult) Subscribe() <-chan string {
-	return r.subscriber.Subscribe()
-}
-
-func (r *ReasoningDeltaResult) Close() {
-	r.subscriber.Close()
-}
-
-func (r *ReasoningDeltaResult) GetHistory() []string {
-	return r.subscriber.GetHistory()
-}
-
-type ReasoningResult struct {
-	text string
-}
-
-func NewReasoningResult(text string) *ReasoningResult {
-	return &ReasoningResult{
-		text: text,
-	}
-}
-func (*ReasoningResult) isResult() {}
-func (r *ReasoningResult) Type() string {
-	return "think"
-}
-func (r *ReasoningResult) String() string {
-	return r.text
-}
-
-type FunctionCallResult struct {
-	callID    string
-	name      string
-	arguments string
-}
-
-func NewFunctionCallResult(callID, name, arguments string) *FunctionCallResult {
-	return &FunctionCallResult{
-		callID:    callID,
-		name:      name,
-		arguments: arguments,
-	}
-}
-func (*FunctionCallResult) isResult() {}
-func (r *FunctionCallResult) Type() string {
-	return "function_call"
-}
-func (r *FunctionCallResult) String() string {
-	return "FunctionToolCall: " + r.name + " args:" + r.arguments
-}
-
-type ErrorResult struct {
-	err error
-}
-
-func NewErrorResult(err error) *ErrorResult {
-	return &ErrorResult{err: err}
-}
-func (*ErrorResult) isResult() {}
-func (r *ErrorResult) Type() string {
-	return "error"
-}
-func (r *ErrorResult) String() string {
-	return fmt.Sprintf("Error: %v", r.err)
-}
-func (r *ErrorResult) Error() error {
-	return r.err
-}
+// Tool is re-exported from provider for convenience.
+type Tool = provider.Tool

@@ -5,15 +5,17 @@ import (
 	"fmt"
 
 	"github.com/demouth/orenoagent-go"
-	"github.com/openai/openai-go/v3"
+	"github.com/demouth/orenoagent-go/provider/openai"
+	openaiSDK "github.com/openai/openai-go/v3"
 )
 
 func main() {
 	// Set the `OPENAI_API_KEY` environment variable
-	client := openai.NewClient()
+	client := openaiSDK.NewClient()
 
 	ctx := context.Background()
-	agent := orenoagent.NewAgent(client)
+	provider := openai.NewProvider(client)
+	agent := orenoagent.NewAgent(provider)
 
 	question := "Who was the first president of the United States?"
 	println("[Question]")

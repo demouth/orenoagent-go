@@ -1,4 +1,4 @@
-package orenoagent
+package util
 
 import (
 	"sync"

@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/demouth/orenoagent-go"
-	"github.com/openai/openai-go/v3"
+	"github.com/demouth/orenoagent-go/provider/openai"
+	openaiSDK "github.com/openai/openai-go/v3"
 	"github.com/tectiv3/websearch"
 	"github.com/tectiv3/websearch/provider"
 )
 
 func main() {
-	client := openai.NewClient()
+	client := openaiSDK.NewClient()
 	ctx := context.Background()
 
 	questions := []string{
@@ -26,11 +27,12 @@ func main() {
 		// "現在の回答を要約してください。",
 	}
 
+	provider := openai.NewProvider(client)
 	agent := orenoagent.NewAgent(
-		client,
+		provider,
 		orenoagent.WithTools(Tools),
 		orenoagent.WithReasoningSummary("detailed"),
-		orenoagent.WithModel(openai.ChatModelGPT5Nano),
+		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
 	)
 	for _, question := range questions {
 		println("[Question]")

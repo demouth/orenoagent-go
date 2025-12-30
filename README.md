@@ -24,15 +24,18 @@ package main
 
 import (
     "context"
+    "fmt"
     "github.com/demouth/orenoagent-go"
-    "github.com/openai/openai-go/v3"
+    "github.com/demouth/orenoagent-go/provider/openai"
+    openaiSDK "github.com/openai/openai-go/v3"
 )
 
 func main() {
-    client := openai.NewClient()
+    client := openaiSDK.NewClient()
     ctx := context.Background()
 
-    agent := orenoagent.NewAgent(client)
+    provider := openai.NewProvider(client)
+    agent := orenoagent.NewAgent(provider)
     subscriber, _ := agent.Ask(ctx, "What is the current date and time?")
 
     for result := range subscriber.Subscribe() {
