@@ -24,7 +24,8 @@ func WithTools(tools []provider.Tool) AgentOption {
 }
 
 // WithReasoningSummary sets the reasoning summary level.
-// Available values: "auto", "concise", "detailed", "none" (default: "none")
+// Available values: "auto", "concise", "detailed"
+// If not specified, the OpenAI default will be used.
 //
 // Note:
 //   - Organizational authentication is required to use reasoning summaries.
@@ -32,6 +33,15 @@ func WithTools(tools []provider.Tool) AgentOption {
 func WithReasoningSummary(summary string) AgentOption {
 	return func(a *Agent) {
 		a.prov.SetReasoningSummary(summary)
+	}
+}
+
+// WithReasoningEffort sets the reasoning effort level.
+// Available values: "none", "minimal", "low", "medium", "high", "xhigh"
+// If not specified, the OpenAI default will be used.
+func WithReasoningEffort(effort string) AgentOption {
+	return func(a *Agent) {
+		a.prov.SetReasoningEffort(effort)
 	}
 }
 

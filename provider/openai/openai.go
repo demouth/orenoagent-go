@@ -35,6 +35,11 @@ func (p *Provider) SetReasoningSummary(summary string) {
 	p.client.reasoningSummary = summary
 }
 
+// SetReasoningEffort implements provider.Provider.
+func (p *Provider) SetReasoningEffort(effort string) {
+	p.client.reasoningEffort = effort
+}
+
 // SetModel implements provider.Provider.
 func (p *Provider) SetModel(model string) {
 	p.client.model = model

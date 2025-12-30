@@ -20,6 +20,10 @@ type client struct {
 	// Supported values: "auto", "concise", "detailed", "none"
 	reasoningSummary string
 
+	// Reasoning effort level
+	// Supported values: "low", "medium", "high"
+	reasoningEffort string
+
 	// Model to use for the agent
 	model string
 
@@ -31,7 +35,8 @@ func newClient(openaiClient openai.Client) *client {
 	return &client{
 		openaiClient:     openaiClient,
 		tools:            []provider.Tool{},
-		reasoningSummary: "none",
+		reasoningSummary: "", // 空文字列 = 未指定
+		reasoningEffort:  "", // 空文字列 = 未指定
 		model:            openai.ChatModelGPT5Nano,
 	}
 }
@@ -42,6 +47,38 @@ func (c *client) getResponseID() string {
 
 func (c *client) setResponseID(id string) {
 	c.responseID = id
+}
+
+func (c *client) getReasoningSummaryParam() openai.ReasoningSummary {
+	switch c.reasoningSummary {
+	case "auto":
+		return openai.ReasoningSummaryAuto
+	case "concise":
+		return openai.ReasoningSummaryConcise
+	case "detailed":
+		return openai.ReasoningSummaryDetailed
+	default:
+		return openai.ReasoningSummaryAuto
+	}
+}
+
+func (c *client) getReasoningEffortParam() openai.ReasoningEffort {
+	switch c.reasoningEffort {
+	case "none":
+		return openai.ReasoningEffortNone
+	case "minimal":
+		return openai.ReasoningEffortMinimal
+	case "low":
+		return openai.ReasoningEffortLow
+	case "medium":
+		return openai.ReasoningEffortMedium
+	case "high":
+		return openai.ReasoningEffortHigh
+	case "xhigh":
+		return openai.ReasoningEffortXhigh
+	default:
+		return openai.ReasoningEffortHigh
+	}
 }
 
 func (c *client) callAPI(
@@ -70,25 +107,20 @@ func (c *client) callAPI(
 		Model: c.model,
 	}
 
-	if c.reasoningSummary != "none" {
-		switch c.reasoningSummary {
-		case "auto":
-			params.Reasoning = openai.ReasoningParam{
-				Summary: openai.ReasoningSummaryAuto,
-			}
-		case "concise":
-			params.Reasoning = openai.ReasoningParam{
-				Summary: openai.ReasoningSummaryConcise,
-			}
-		case "detailed":
-			params.Reasoning = openai.ReasoningParam{
-				Summary: openai.ReasoningSummaryDetailed,
-			}
-		default:
-			params.Reasoning = openai.ReasoningParam{
-				Summary: openai.ReasoningSummaryAuto,
-			}
+	if c.reasoningSummary != "" || c.reasoningEffort != "" {
+		var reasoning openai.ReasoningParam
+
+		// Set summary if specified
+		if c.reasoningSummary != "" {
+			reasoning.Summary = c.getReasoningSummaryParam()
 		}
+
+		// Set effort if specified
+		if c.reasoningEffort != "" {
+			reasoning.Effort = c.getReasoningEffortParam()
+		}
+
+		params.Reasoning = reasoning
 	}
 
 	if c.getResponseID() == "" {
@@ -161,6 +193,9 @@ func (c *client) processMessageInput(
 	)
 
 	stream := c.callAPI(ctx, inputs, responses.ToolChoiceOptionsAuto)
+	if err := stream.Err(); err != nil {
+		return nil, err
+	}
 	var results Results
 	for stream.Next() {
 		if err := stream.Err(); err != nil {

@@ -18,6 +18,7 @@ func main() {
 	agent := orenoagent.NewAgent(
 		provider,
 		orenoagent.WithReasoningSummary("detailed"),
+		orenoagent.WithReasoningEffort("high"),
 		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
 	)
 
