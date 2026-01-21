@@ -31,5 +31,5 @@ go.work.sum
 # .idea/
 .vscode/
 
-examples/*/go*
+_examples/*/go*
 

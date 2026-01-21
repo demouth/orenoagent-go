@@ -27,12 +27,14 @@ func main() {
 		// "現在の回答を要約してください。",
 	}
 
-	provider := openai.NewProvider(client)
+	provider := openai.NewProvider(
+		client,
+		openai.WithModel(openaiSDK.ChatModelGPT5Nano),
+		openai.WithReasoningSummary("detailed"),
+	)
 	agent := orenoagent.NewAgent(
 		provider,
 		orenoagent.WithTools(Tools),
-		orenoagent.WithReasoningSummary("detailed"),
-		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
 	)
 	for _, question := range questions {
 		println("[Question]")

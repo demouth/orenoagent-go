@@ -23,43 +23,13 @@ func WithTools(tools []provider.Tool) AgentOption {
 	}
 }
 
-// WithReasoningSummary sets the reasoning summary level.
-// Available values: "auto", "concise", "detailed"
-// If not specified, the OpenAI default will be used.
-//
-// Note:
-//   - Organizational authentication is required to use reasoning summaries.
-//   - https://platform.openai.com/settings/organization/general
-func WithReasoningSummary(summary string) AgentOption {
-	return func(a *Agent) {
-		a.prov.SetReasoningSummary(summary)
-	}
-}
-
-// WithReasoningEffort sets the reasoning effort level.
-// Available values: "none", "minimal", "low", "medium", "high", "xhigh"
-// If not specified, the OpenAI default will be used.
-func WithReasoningEffort(effort string) AgentOption {
-	return func(a *Agent) {
-		a.prov.SetReasoningEffort(effort)
-	}
-}
-
-// WithModel sets the model to use for the agent.
-// Default: openai.ChatModelGPT5Nano
-func WithModel(model string) AgentOption {
-	return func(a *Agent) {
-		a.prov.SetModel(model)
-	}
-}
-
 // NewAgent creates a new Agent with the given provider.
 //
 // Example usage:
 //
 //	provider := openai.NewProvider(client)
 //	agent := orenoagent.NewAgent(provider)
-//	agent := orenoagent.NewAgent(provider, orenoagent.WithTools(tools), orenoagent.WithReasoningSummary("detailed"))
+//	agent := orenoagent.NewAgent(provider, orenoagent.WithTools(tools))
 func NewAgent(prov provider.Provider, opts ...AgentOption) *Agent {
 	agent := &Agent{
 		prov: prov,

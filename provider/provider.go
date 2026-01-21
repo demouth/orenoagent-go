@@ -15,15 +15,4 @@ type Provider interface {
 
 	// SetTools sets the tools available to the provider.
 	SetTools(tools []Tool)
-
-	// SetReasoningSummary sets the reasoning summary level.
-	// Available values: "auto", "concise", "detailed"
-	SetReasoningSummary(summary string)
-
-	// SetReasoningEffort sets the reasoning effort level.
-	// Available values: "none", "minimal", "low", "medium", "high", "xhigh"
-	SetReasoningEffort(effort string)
-
-	// SetModel sets the model to use.
-	SetModel(model string)
 }

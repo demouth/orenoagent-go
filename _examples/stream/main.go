@@ -14,12 +14,14 @@ func main() {
 	client := openaiSDK.NewClient()
 
 	ctx := context.Background()
-	provider := openai.NewProvider(client)
+	provider := openai.NewProvider(
+		client,
+		openai.WithModel(openaiSDK.ChatModelGPT5Nano),
+		openai.WithReasoningSummary("detailed"),
+	)
 	agent := orenoagent.NewAgent(
 		provider,
 		orenoagent.WithTools(Tools),
-		orenoagent.WithReasoningSummary("detailed"),
-		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
 	)
 
 	questions := []string{

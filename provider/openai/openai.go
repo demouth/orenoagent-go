@@ -12,11 +12,55 @@ type Provider struct {
 	client *client
 }
 
+// ProviderOption configures an OpenAI Provider.
+type ProviderOption func(*Provider)
+
+// WithModel sets the model to use for the provider.
+// Default: openai.ChatModelGPT5Nano
+func WithModel(model string) ProviderOption {
+	return func(p *Provider) {
+		p.client.model = model
+	}
+}
+
+// WithReasoningSummary sets the reasoning summary level.
+// Available values: "auto", "concise", "detailed"
+// If not specified, the OpenAI default will be used.
+//
+// Note:
+//   - Organizational authentication is required to use reasoning summaries.
+//   - https://platform.openai.com/settings/organization/general
+func WithReasoningSummary(summary string) ProviderOption {
+	return func(p *Provider) {
+		p.client.reasoningSummary = summary
+	}
+}
+
+// WithReasoningEffort sets the reasoning effort level.
+// Available values: "none", "minimal", "low", "medium", "high", "xhigh"
+// If not specified, the OpenAI default will be used.
+func WithReasoningEffort(effort string) ProviderOption {
+	return func(p *Provider) {
+		p.client.reasoningEffort = effort
+	}
+}
+
 // NewProvider creates a new OpenAI provider.
-func NewProvider(openaiClient openai.Client) provider.Provider {
-	return &Provider{
+//
+// Example usage:
+//
+//	provider := openai.NewProvider(client)
+//	provider := openai.NewProvider(client, openai.WithModel("o3"), openai.WithReasoningEffort("high"))
+func NewProvider(openaiClient openai.Client, opts ...ProviderOption) provider.Provider {
+	p := &Provider{
 		client: newClient(openaiClient),
 	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
 }
 
 // ProcessMessage implements provider.Provider.
@@ -28,19 +72,4 @@ func (p *Provider) ProcessMessage(ctx context.Context, yield func(provider.Resul
 // SetTools implements provider.Provider.
 func (p *Provider) SetTools(tools []provider.Tool) {
 	p.client.tools = tools
-}
-
-// SetReasoningSummary implements provider.Provider.
-func (p *Provider) SetReasoningSummary(summary string) {
-	p.client.reasoningSummary = summary
-}
-
-// SetReasoningEffort implements provider.Provider.
-func (p *Provider) SetReasoningEffort(effort string) {
-	p.client.reasoningEffort = effort
-}
-
-// SetModel implements provider.Provider.
-func (p *Provider) SetModel(model string) {
-	p.client.model = model
 }

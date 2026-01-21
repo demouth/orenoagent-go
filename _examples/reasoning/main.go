@@ -14,13 +14,13 @@ func main() {
 	client := openaiSDK.NewClient()
 
 	ctx := context.Background()
-	provider := openai.NewProvider(client)
-	agent := orenoagent.NewAgent(
-		provider,
-		orenoagent.WithReasoningSummary("detailed"),
-		orenoagent.WithReasoningEffort("high"),
-		orenoagent.WithModel(openaiSDK.ChatModelGPT5Nano),
+	provider := openai.NewProvider(
+		client,
+		openai.WithModel(openaiSDK.ChatModelGPT5Nano),
+		openai.WithReasoningSummary("detailed"),
+		openai.WithReasoningEffort("high"),
 	)
+	agent := orenoagent.NewAgent(provider)
 
 	questions := []string{
 		"赤・青・緑の箱がある。赤は青の左。緑は赤の右。赤と緑は隣り合っている。中央にある箱は？",
