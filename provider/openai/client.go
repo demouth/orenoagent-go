@@ -27,16 +27,16 @@ type client struct {
 	// Model to use for the agent
 	model string
 
-	latestMessageDeltaResult   *MessageDeltaResult
-	latestReasoningDeltaResult *ReasoningDeltaResult
+	latestMessageDeltaResult   *provider.MessageDeltaResult
+	latestReasoningDeltaResult *provider.ReasoningDeltaResult
 }
 
 func newClient(openaiClient openai.Client) *client {
 	return &client{
 		openaiClient:     openaiClient,
 		tools:            []provider.Tool{},
-		reasoningSummary: "", // 空文字列 = 未指定
-		reasoningEffort:  "", // 空文字列 = 未指定
+		reasoningSummary: "", // empty string = not specified
+		reasoningEffort:  "", // empty string = not specified
 		model:            openai.ChatModelGPT5Nano,
 	}
 }
@@ -286,7 +286,7 @@ func (c *client) handleResponse(
 		case "message":
 		case "function_call":
 			item := r.Item.AsFunctionCall()
-			result := NewFunctionCallResult(item.CallID, item.Name, item.Arguments)
+			result := provider.NewFunctionCallResult(item.CallID, item.Name, item.Arguments)
 			if !yield(result) {
 				return nil, errors.New("cancel iter")
 			}
@@ -295,7 +295,7 @@ func (c *client) handleResponse(
 
 	case "response.content_part.added":
 		t := event.AsResponseContentPartAdded()
-		r := NewMessageDeltaResult(t.Part.Text)
+		r := provider.NewMessageDeltaResult(t.Part.Text)
 		c.latestMessageDeltaResult = r
 		if !yield(r) {
 			return nil, errors.New("cancel iter")
@@ -305,7 +305,7 @@ func (c *client) handleResponse(
 	case "response.output_text.delta":
 		t := event.AsResponseOutputTextDelta()
 		r := c.latestMessageDeltaResult
-		r.addDelta(t.Delta)
+		r.AddDelta(t.Delta)
 
 	case "response.content_part.done":
 		if c.latestMessageDeltaResult != nil {
@@ -315,7 +315,7 @@ func (c *client) handleResponse(
 	case "response.output_text.done":
 		t := event.AsResponseOutputTextDone()
 		var r provider.Result
-		r = NewMessageResult(t.Text)
+		r = provider.NewMessageResult(t.Text)
 		if !yield(r) {
 			return nil, errors.New("cancel iter")
 		}
@@ -323,7 +323,7 @@ func (c *client) handleResponse(
 
 	case "response.reasoning_summary_part.added":
 		t := event.AsResponseReasoningSummaryPartAdded()
-		r := NewReasoningDeltaResult(t.Part.Text)
+		r := provider.NewReasoningDeltaResult(t.Part.Text)
 		c.latestReasoningDeltaResult = r
 		if !yield(r) {
 			return nil, errors.New("cancel iter")
@@ -333,7 +333,7 @@ func (c *client) handleResponse(
 	case "response.reasoning_summary_text.delta":
 		t := event.AsResponseReasoningSummaryTextDelta()
 		r := c.latestReasoningDeltaResult
-		r.addDelta(t.Delta)
+		r.AddDelta(t.Delta)
 
 	case "response.reasoning_summary_part.done":
 		if c.latestReasoningDeltaResult != nil {
@@ -342,7 +342,7 @@ func (c *client) handleResponse(
 
 	case "response.reasoning_summary_text.done":
 		t := event.AsResponseReasoningSummaryTextDone()
-		r := NewReasoningResult(t.Text)
+		r := provider.NewReasoningResult(t.Text)
 		if !yield(r) {
 			return nil, errors.New("cancel iter")
 		}

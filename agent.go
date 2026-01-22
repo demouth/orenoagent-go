@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/demouth/orenoagent-go/provider"
-	"github.com/demouth/orenoagent-go/provider/openai"
 	"github.com/demouth/orenoagent-go/util"
 )
 
@@ -70,15 +69,15 @@ func (a *Agent) Ask(ctx context.Context, question string) (*util.Subscriber[Resu
 // convertProviderResult converts a provider.Result to an agent Result.
 func convertProviderResult(providerResult provider.Result) (Result, error) {
 	switch pr := providerResult.(type) {
-	case *openai.MessageResult:
+	case *provider.MessageResult:
 		return NewMessageResult(pr.GetText()), nil
-	case *openai.MessageDeltaResult:
+	case *provider.MessageDeltaResult:
 		return convertMessageDeltaResult(pr), nil
-	case *openai.ReasoningResult:
+	case *provider.ReasoningResult:
 		return NewReasoningResult(pr.GetText()), nil
-	case *openai.ReasoningDeltaResult:
+	case *provider.ReasoningDeltaResult:
 		return convertReasoningDeltaResult(pr), nil
-	case *openai.FunctionCallResult:
+	case *provider.FunctionCallResult:
 		return NewFunctionCallResult(pr.GetCallID(), pr.GetName(), pr.GetArguments()), nil
 	default:
 		return nil, fmt.Errorf("unknown provider result type: %T", providerResult)
@@ -86,16 +85,13 @@ func convertProviderResult(providerResult provider.Result) (Result, error) {
 }
 
 // convertMessageDeltaResult converts a provider MessageDeltaResult to an agent MessageDeltaResult.
-func convertMessageDeltaResult(pr *openai.MessageDeltaResult) *MessageDeltaResult {
-	// Create a new MessageDeltaResult with empty text initially
-	// We'll receive the full stream from the provider
+func convertMessageDeltaResult(pr *provider.MessageDeltaResult) *MessageDeltaResult {
 	subscriber := util.NewSubscriber[string](1000)
 	agentResult := &MessageDeltaResult{
 		text:       "",
 		subscriber: subscriber,
 	}
 
-	// Subscribe to provider deltas and forward them to agent result
 	go func() {
 		defer subscriber.Close()
 		for delta := range pr.Subscribe() {
@@ -108,16 +104,13 @@ func convertMessageDeltaResult(pr *openai.MessageDeltaResult) *MessageDeltaResul
 }
 
 // convertReasoningDeltaResult converts a provider ReasoningDeltaResult to an agent ReasoningDeltaResult.
-func convertReasoningDeltaResult(pr *openai.ReasoningDeltaResult) *ReasoningDeltaResult {
-	// Create a new ReasoningDeltaResult with empty text initially
-	// We'll receive the full stream from the provider
+func convertReasoningDeltaResult(pr *provider.ReasoningDeltaResult) *ReasoningDeltaResult {
 	subscriber := util.NewSubscriber[string](1000)
 	agentResult := &ReasoningDeltaResult{
 		text:       "",
 		subscriber: subscriber,
 	}
 
-	// Subscribe to provider deltas and forward them to agent result
 	go func() {
 		defer subscriber.Close()
 		for delta := range pr.Subscribe() {
